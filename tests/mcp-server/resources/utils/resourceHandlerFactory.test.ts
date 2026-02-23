@@ -463,5 +463,35 @@ describe('Resource Handler Factory', () => {
       expect(result).toHaveProperty('contents');
       expect(mockLogic).toHaveBeenCalled();
     });
+
+    it('should avoid cloning arbitrary callContext properties into handler context', async () => {
+      const ParamsSchema = z.object({});
+      const mockLogic = vi.fn(async () => ({ result: 'ok' }));
+
+      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
+        name: 'context-safety-test',
+        description: 'Test callContext safety',
+        uriTemplate: 'test://',
+        paramsSchema: ParamsSchema,
+        logic: mockLogic,
+      };
+
+      await registerResource(mockServer as unknown as McpServer, resourceDef);
+
+      const handler = mockServer.resource.mock.calls[0]?.[3];
+      if (!handler) throw new Error('Handler not registered');
+
+      const callContext: { sessionId: string } = { sessionId: 'safe-session' };
+      Object.defineProperty(callContext, 'dangerous', {
+        enumerable: true,
+        get() {
+          throw new Error('dangerous getter should not be accessed');
+        },
+      });
+
+      const result = await handler(new URL('test://safe'), {}, callContext);
+      expect(result).toHaveProperty('contents');
+      expect(mockLogic).toHaveBeenCalled();
+    });
   });
 });

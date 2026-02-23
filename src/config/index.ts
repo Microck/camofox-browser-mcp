@@ -325,8 +325,8 @@ const parseConfig = () => {
       filesystemPath: env.STORAGE_FILESYSTEM_PATH,
     },
     camofox: {
-      baseUrl: env.CAMOFOX_BASE_URL,
-      timeoutMs: env.CAMOFOX_TIMEOUT_MS,
+      baseUrl: env.CAMOFOX_BASE_URL ?? env.CAMOFOX_URL,
+      timeoutMs: env.CAMOFOX_TIMEOUT_MS ?? env.CAMOFOX_TIMEOUT,
       defaultUserId: env.CAMOFOX_DEFAULT_USER_ID,
       defaultSessionKey: env.CAMOFOX_DEFAULT_SESSION_KEY,
       apiKey: env.CAMOFOX_API_KEY,

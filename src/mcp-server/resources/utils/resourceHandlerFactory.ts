@@ -123,7 +123,6 @@ export async function registerResource<
 
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
-              parentContext: callContext,
               operation: 'HandleResourceRead',
               additionalContext: {
                 resourceUri: uri.href,

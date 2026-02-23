@@ -179,6 +179,27 @@ describe('createMcpToolHandler', () => {
       expect(capturedAppContext!.operation).toBe('HandleToolRequest');
       expect(capturedSdkContext).toEqual(testSdkContext);
     });
+
+    it('should avoid cloning arbitrary sdkContext properties into appContext', async () => {
+      const inputSchema = z.object({});
+      const handler = createMcpToolHandler({
+        toolName: 'test_tool',
+        inputSchema,
+        logic: async () => ({ ok: true }),
+      });
+
+      const sdkContext = createMockSdkContext();
+      Object.defineProperty(sdkContext, 'dangerous', {
+        enumerable: true,
+        get() {
+          throw new Error('dangerous getter should not be accessed');
+        },
+      });
+
+      const result = await handler({}, sdkContext);
+      expect(result.structuredContent).toEqual({ ok: true });
+      expect(result.isError).toBeUndefined();
+    });
   });
 
   describe('Elicitation Support', () => {

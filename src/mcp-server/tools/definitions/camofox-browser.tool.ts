@@ -33,6 +33,40 @@ const TOOL_ANNOTATIONS_MUTATING: ToolAnnotations = {
 
 const CAMOFOX_SCOPE = ['tool:camofox:use'];
 
+const WEB_SEARCH_MACROS = {
+  google: '@google_search',
+  youtube: '@youtube_search',
+  amazon: '@amazon_search',
+  reddit: '@reddit_search',
+  wikipedia: '@wikipedia_search',
+  twitter: '@twitter_search',
+  yelp: '@yelp_search',
+  spotify: '@spotify_search',
+  netflix: '@netflix_search',
+  linkedin: '@linkedin_search',
+  instagram: '@instagram_search',
+  tiktok: '@tiktok_search',
+  twitch: '@twitch_search',
+} as const;
+
+const WebSearchEngineSchema = z
+  .enum([
+    'google',
+    'youtube',
+    'amazon',
+    'reddit',
+    'wikipedia',
+    'twitter',
+    'yelp',
+    'spotify',
+    'netflix',
+    'linkedin',
+    'instagram',
+    'tiktok',
+    'twitch',
+  ])
+  .describe('Search engine selector mapped to a camofox macro.');
+
 const SameSiteSchema = z
   .enum(['Strict', 'Lax', 'None'])
   .describe('Cookie SameSite value.');
@@ -992,6 +1026,32 @@ async function requestCamofoxBinary({
   };
 }
 
+async function requestCamofoxAct({
+  tabId,
+  userId,
+  appContext,
+  kind,
+  params,
+}: {
+  tabId: string;
+  userId: string;
+  appContext: RequestContext;
+  kind: string;
+  params?: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  return requestCamofoxJson({
+    method: 'POST',
+    path: '/act',
+    appContext,
+    body: {
+      kind,
+      targetId: tabId,
+      userId,
+      ...(params ?? {}),
+    },
+  });
+}
+
 const PressInputSchema = z
   .object({
     tabId: z.string().min(1).describe('Tab id where keypress should happen.'),
@@ -1502,6 +1562,941 @@ export const camofoxCloseSessionTool: ToolDefinition<
       response,
     };
   }),
+};
+
+const HoverInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id where hover should happen.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    ref: z
+      .string()
+      .optional()
+      .describe('Snapshot element ref such as e1. Preferred over CSS selector.'),
+    selector: z
+      .string()
+      .optional()
+      .describe('Fallback CSS selector when ref is unavailable.'),
+  })
+  .describe('Hover over an element to trigger tooltips, menus, or hover states.');
+
+const HoverOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    hovered: z.boolean().describe('Whether hover was acknowledged.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /act hover action.'),
+  })
+  .describe('Hover action result.');
+
+export const camofoxHoverTool: ToolDefinition<
+  typeof HoverInputSchema,
+  typeof HoverOutputSchema
+> = {
+  name: 'camofox_hover',
+  title: 'Camofox Hover',
+  description:
+    'Hovers over a page element using either a snapshot ref or CSS selector.',
+  inputSchema: HoverInputSchema,
+  outputSchema: HoverOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    if (!input.ref && !input.selector) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Provide either ref or selector for hover.',
+      );
+    }
+
+    const response = await requestCamofoxAct({
+      tabId: input.tabId,
+      userId: resolveUserId(input.userId),
+      appContext,
+      kind: 'hover',
+      params: {
+        ...(input.ref ? { ref: input.ref } : {}),
+        ...(input.selector ? { selector: input.selector } : {}),
+      },
+    });
+
+    return {
+      tabId: input.tabId,
+      hovered: getBoolean(response.ok) ?? true,
+      response,
+    };
+  }),
+};
+
+const ScrollElementInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id containing the target scrollable element.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    ref: z
+      .string()
+      .describe('Element ref to scroll into view, typically from camofox_get_snapshot.'),
+  })
+  .describe('Scroll an element into view using its snapshot ref.');
+
+const ScrollElementOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    scrolled: z.boolean().describe('Whether scroll action was acknowledged.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /act scrollIntoView action.'),
+  })
+  .describe('Element scroll result.');
+
+export const camofoxScrollElementTool: ToolDefinition<
+  typeof ScrollElementInputSchema,
+  typeof ScrollElementOutputSchema
+> = {
+  name: 'camofox_scroll_element',
+  title: 'Camofox Scroll Element',
+  description: 'Scrolls a referenced element into view within the active tab.',
+  inputSchema: ScrollElementInputSchema,
+  outputSchema: ScrollElementOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxAct({
+      tabId: input.tabId,
+      userId: resolveUserId(input.userId),
+      appContext,
+      kind: 'scrollIntoView',
+      params: { ref: input.ref },
+    });
+
+    return {
+      tabId: input.tabId,
+      scrolled: getBoolean(response.ok) ?? true,
+      response,
+    };
+  }),
+};
+
+const WaitForTextInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id to monitor for text appearance.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    text: z.string().min(1).describe('Text to wait for on the page.'),
+  })
+  .describe('Wait until specific text appears in the page.');
+
+const WaitForTextOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    matched: z.boolean().describe('Whether the text wait operation completed.'),
+    url: z.string().optional().describe('Current URL when wait finished.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /act wait action.'),
+  })
+  .describe('Wait-for-text result.');
+
+export const camofoxWaitForTextTool: ToolDefinition<
+  typeof WaitForTextInputSchema,
+  typeof WaitForTextOutputSchema
+> = {
+  name: 'camofox_wait_for_text',
+  title: 'Camofox Wait For Text',
+  description: 'Waits for specific text to appear in a tab using backend /act wait.',
+  inputSchema: WaitForTextInputSchema,
+  outputSchema: WaitForTextOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxAct({
+      tabId: input.tabId,
+      userId: resolveUserId(input.userId),
+      appContext,
+      kind: 'wait',
+      params: { text: input.text },
+    });
+
+    return {
+      tabId: input.tabId,
+      matched: getBoolean(response.ok) ?? true,
+      ...(getString(response.url) ? { url: getString(response.url) } : {}),
+      response,
+    };
+  }),
+};
+
+const NavigateAndSnapshotInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id to navigate before snapshot capture.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    sessionKey: z
+      .string()
+      .optional()
+      .describe('Optional session key used if navigate auto-creates tab context.'),
+    url: z.string().url().optional().describe('Direct URL target.'),
+    macro: z.string().optional().describe('Macro target such as @google_search.'),
+    query: z.string().optional().describe('Macro query value.'),
+    waitTimeoutMs: z
+      .number()
+      .int()
+      .min(1)
+      .max(120000)
+      .default(10000)
+      .describe('Maximum wait time in milliseconds after navigation.'),
+    waitForNetwork: z
+      .boolean()
+      .default(true)
+      .describe('If true, includes network-idle wait before snapshot.'),
+    includeScreenshot: z
+      .boolean()
+      .optional()
+      .describe('If true, includes base64 screenshot payload in snapshot response.'),
+    offset: z
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe('Optional snapshot offset for large pages.'),
+  })
+  .describe('Navigate to a target and immediately return a fresh snapshot.');
+
+const NavigateAndSnapshotOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    url: z.string().describe('Final URL represented by the snapshot.'),
+    snapshot: z.string().describe('Accessibility snapshot text.'),
+    refsCount: z.number().int().describe('Number of refs captured in snapshot.'),
+    truncated: z.boolean().describe('Whether snapshot output was truncated.'),
+    hasMore: z.boolean().optional().describe('Whether more snapshot chunks are available.'),
+    nextOffset: z.number().int().optional().describe('Next snapshot offset if available.'),
+    navigateResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from navigate call.'),
+    waitResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from wait call.'),
+    snapshotResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from snapshot call.'),
+  })
+  .describe('Combined navigate, wait, snapshot result.');
+
+export const camofoxNavigateAndSnapshotTool: ToolDefinition<
+  typeof NavigateAndSnapshotInputSchema,
+  typeof NavigateAndSnapshotOutputSchema
+> = {
+  name: 'navigate_and_snapshot',
+  title: 'Camofox Navigate And Snapshot',
+  description:
+    'Navigates to a URL or macro target, waits for readiness, then captures a snapshot.',
+  inputSchema: NavigateAndSnapshotInputSchema,
+  outputSchema: NavigateAndSnapshotOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    if (!input.url && !input.macro) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Provide either url or macro for navigate_and_snapshot.',
+      );
+    }
+
+    const userId = resolveUserId(input.userId);
+
+    const navigateResponse = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/navigate`,
+      appContext,
+      body: {
+        userId,
+        ...(input.sessionKey ? { sessionKey: input.sessionKey } : {}),
+        ...(input.url ? { url: input.url } : {}),
+        ...(input.macro ? { macro: input.macro } : {}),
+        ...(input.query ? { query: input.query } : {}),
+      },
+    });
+
+    const waitResponse = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/wait`,
+      appContext,
+      body: {
+        userId,
+        timeout: input.waitTimeoutMs,
+        waitForNetwork: input.waitForNetwork,
+      },
+    });
+
+    const snapshotResponse = await requestCamofoxJson({
+      method: 'GET',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/snapshot`,
+      appContext,
+      query: {
+        userId,
+        includeScreenshot: input.includeScreenshot,
+        offset: input.offset,
+      },
+    });
+
+    const url = getString(snapshotResponse.url);
+    const snapshot = getString(snapshotResponse.snapshot);
+    const refsCount = getNumber(snapshotResponse.refsCount);
+    const truncated = getBoolean(snapshotResponse.truncated);
+
+    if (!url || snapshot === undefined || refsCount === undefined || truncated === undefined) {
+      throw new McpError(
+        JsonRpcErrorCode.SerializationError,
+        'navigate_and_snapshot could not parse snapshot response fields.',
+        { snapshotResponse },
+      );
+    }
+
+    return {
+      tabId: input.tabId,
+      url,
+      snapshot,
+      refsCount,
+      truncated,
+      hasMore: getBoolean(snapshotResponse.hasMore),
+      nextOffset: getNumber(snapshotResponse.nextOffset),
+      navigateResponse,
+      waitResponse,
+      snapshotResponse,
+    };
+  }),
+};
+
+const ScrollAndSnapshotInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id to scroll before snapshot capture.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    direction: z
+      .enum(['up', 'down'])
+      .default('down')
+      .describe('Scroll direction.'),
+    amount: z
+      .number()
+      .int()
+      .min(1)
+      .default(700)
+      .describe('Scroll amount in pixels.'),
+    includeScreenshot: z
+      .boolean()
+      .optional()
+      .describe('If true, includes screenshot payload in snapshot response.'),
+    offset: z
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe('Optional snapshot offset for large pages.'),
+  })
+  .describe('Scroll a page and immediately return an updated snapshot.');
+
+const ScrollAndSnapshotOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    url: z.string().describe('URL represented by the snapshot.'),
+    snapshot: z.string().describe('Accessibility snapshot text.'),
+    refsCount: z.number().int().describe('Number of refs captured in snapshot.'),
+    truncated: z.boolean().describe('Whether snapshot output was truncated.'),
+    hasMore: z.boolean().optional().describe('Whether more snapshot chunks are available.'),
+    nextOffset: z.number().int().optional().describe('Next snapshot offset if available.'),
+    scrollResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from scroll call.'),
+    snapshotResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from snapshot call.'),
+  })
+  .describe('Combined scroll and snapshot result.');
+
+export const camofoxScrollAndSnapshotTool: ToolDefinition<
+  typeof ScrollAndSnapshotInputSchema,
+  typeof ScrollAndSnapshotOutputSchema
+> = {
+  name: 'scroll_and_snapshot',
+  title: 'Camofox Scroll And Snapshot',
+  description: 'Scrolls the page and returns a fresh snapshot in one call.',
+  inputSchema: ScrollAndSnapshotInputSchema,
+  outputSchema: ScrollAndSnapshotOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const userId = resolveUserId(input.userId);
+
+    const scrollResponse = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/scroll`,
+      appContext,
+      body: {
+        userId,
+        direction: input.direction,
+        amount: input.amount,
+      },
+    });
+
+    const snapshotResponse = await requestCamofoxJson({
+      method: 'GET',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/snapshot`,
+      appContext,
+      query: {
+        userId,
+        includeScreenshot: input.includeScreenshot,
+        offset: input.offset,
+      },
+    });
+
+    const url = getString(snapshotResponse.url);
+    const snapshot = getString(snapshotResponse.snapshot);
+    const refsCount = getNumber(snapshotResponse.refsCount);
+    const truncated = getBoolean(snapshotResponse.truncated);
+
+    if (!url || snapshot === undefined || refsCount === undefined || truncated === undefined) {
+      throw new McpError(
+        JsonRpcErrorCode.SerializationError,
+        'scroll_and_snapshot could not parse snapshot response fields.',
+        { snapshotResponse },
+      );
+    }
+
+    return {
+      tabId: input.tabId,
+      url,
+      snapshot,
+      refsCount,
+      truncated,
+      hasMore: getBoolean(snapshotResponse.hasMore),
+      nextOffset: getNumber(snapshotResponse.nextOffset),
+      scrollResponse,
+      snapshotResponse,
+    };
+  }),
+};
+
+const TypeAndSubmitInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id where typing should happen.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    text: z.string().describe('Text to type before submit keypress.'),
+    ref: z.string().optional().describe('Snapshot element ref to target.'),
+    selector: z.string().optional().describe('Fallback CSS selector.'),
+    submitKey: z.string().min(1).default('Enter').describe('Keyboard key used for submission.'),
+  })
+  .describe('Type into an input and submit with a keypress in one call.');
+
+const TypeAndSubmitOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    typed: z.boolean().describe('Whether typing request succeeded.'),
+    submitKey: z.string().describe('Key used for submission.'),
+    typeResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /tabs/:tabId/type.'),
+    pressResponse: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /tabs/:tabId/press.'),
+  })
+  .describe('Type-and-submit result.');
+
+export const typeAndSubmitTool: ToolDefinition<
+  typeof TypeAndSubmitInputSchema,
+  typeof TypeAndSubmitOutputSchema
+> = {
+  name: 'type_and_submit',
+  title: 'Camofox Type And Submit',
+  description:
+    'Types text into an input and sends a submit keypress (default Enter) in one call.',
+  inputSchema: TypeAndSubmitInputSchema,
+  outputSchema: TypeAndSubmitOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    if (!input.ref && !input.selector) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Provide either ref or selector for type_and_submit.',
+      );
+    }
+
+    const userId = resolveUserId(input.userId);
+    const typeResponse = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/type`,
+      appContext,
+      body: {
+        userId,
+        text: input.text,
+        ...(input.ref ? { ref: input.ref } : {}),
+        ...(input.selector ? { selector: input.selector } : {}),
+      },
+    });
+
+    const pressResponse = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/press`,
+      appContext,
+      body: {
+        userId,
+        key: input.submitKey,
+      },
+    });
+
+    return {
+      tabId: input.tabId,
+      typed: getBoolean(typeResponse.ok) ?? true,
+      submitKey: input.submitKey,
+      typeResponse,
+      pressResponse,
+    };
+  }),
+};
+
+const FillFormFieldSchema = z
+  .object({
+    ref: z.string().optional().describe('Snapshot ref for the input field.'),
+    selector: z.string().optional().describe('Fallback CSS selector for the input field.'),
+    value: z.string().describe('Value to fill into the field.'),
+  })
+  .describe('Single form field input descriptor.');
+
+const FillFormInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id where form filling occurs.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    fields: z.array(FillFormFieldSchema).describe('List of fields to fill in order.'),
+    submitRef: z.string().optional().describe('Optional submit button ref.'),
+    submitSelector: z.string().optional().describe('Optional submit button selector.'),
+  })
+  .describe('Fill multiple form inputs, with optional submit click.');
+
+const FillFormOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    filledCount: z.number().int().describe('Number of fields filled successfully.'),
+    submitted: z.boolean().describe('Whether a submit click was executed.'),
+    fieldResponses: z
+      .array(z.record(z.string(), z.unknown()))
+      .describe('Raw responses from field type calls in order.'),
+    submitResponse: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe('Raw submit click response when submit target is provided.'),
+  })
+  .describe('Fill-form result.');
+
+export const fillFormTool: ToolDefinition<
+  typeof FillFormInputSchema,
+  typeof FillFormOutputSchema
+> = {
+  name: 'fill_form',
+  title: 'Camofox Fill Form',
+  description:
+    'Fills multiple form fields in sequence and optionally clicks a submit target.',
+  inputSchema: FillFormInputSchema,
+  outputSchema: FillFormOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const userId = resolveUserId(input.userId);
+    const fieldResponses: Record<string, unknown>[] = [];
+
+    for (const field of input.fields) {
+      if (!field.ref && !field.selector) {
+        throw new McpError(
+          JsonRpcErrorCode.InvalidParams,
+          'Each fill_form field requires either ref or selector.',
+        );
+      }
+
+      const response = await requestCamofoxJson({
+        method: 'POST',
+        path: `/tabs/${encodeURIComponent(input.tabId)}/type`,
+        appContext,
+        body: {
+          userId,
+          text: field.value,
+          ...(field.ref ? { ref: field.ref } : {}),
+          ...(field.selector ? { selector: field.selector } : {}),
+        },
+      });
+      fieldResponses.push(response);
+    }
+
+    const submitRef = input.submitRef;
+    const submitSelector = input.submitSelector;
+    const submitResponse =
+      submitRef || submitSelector
+        ? await requestCamofoxJson({
+            method: 'POST',
+            path: `/tabs/${encodeURIComponent(input.tabId)}/click`,
+            appContext,
+            body: {
+              userId,
+              ...(submitRef ? { ref: submitRef } : {}),
+              ...(submitSelector ? { selector: submitSelector } : {}),
+            },
+          })
+        : undefined;
+
+    return {
+      tabId: input.tabId,
+      filledCount: fieldResponses.length,
+      submitted: Boolean(submitResponse),
+      fieldResponses,
+      ...(submitResponse ? { submitResponse } : {}),
+    };
+  }),
+};
+
+const BatchClickEntrySchema = z
+  .object({
+    ref: z.string().optional().describe('Element ref target for this click.'),
+    selector: z.string().optional().describe('CSS selector target for this click.'),
+  })
+  .describe('Single click instruction.');
+
+const BatchClickInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id where batched clicks are executed.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    actions: z
+      .array(BatchClickEntrySchema)
+      .describe('Ordered list of click actions to execute.'),
+    delayMs: z
+      .number()
+      .int()
+      .min(0)
+      .max(60000)
+      .default(0)
+      .describe('Delay between click actions in milliseconds.'),
+  })
+  .describe('Execute multiple click actions sequentially with per-item results.');
+
+const BatchClickResultItemSchema = z
+  .object({
+    index: z.number().int().describe('Index of the action in the request list.'),
+    ok: z.boolean().describe('Whether the click succeeded.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe('Raw click response when successful.'),
+    error: z.string().optional().describe('Error message when click failed.'),
+  })
+  .describe('Result item for one batched click action.');
+
+const BatchClickOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    results: z.array(BatchClickResultItemSchema).describe('Per-action click results.'),
+  })
+  .describe('Batch-click result.');
+
+export const batchClickTool: ToolDefinition<
+  typeof BatchClickInputSchema,
+  typeof BatchClickOutputSchema
+> = {
+  name: 'batch_click',
+  title: 'Camofox Batch Click',
+  description:
+    'Executes multiple click actions in sequence and returns per-action outcomes.',
+  inputSchema: BatchClickInputSchema,
+  outputSchema: BatchClickOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const userId = resolveUserId(input.userId);
+    const results: Array<{
+      index: number;
+      ok: boolean;
+      response?: Record<string, unknown>;
+      error?: string;
+    }> = [];
+
+    for (const [index, action] of input.actions.entries()) {
+      try {
+        if (!action.ref && !action.selector) {
+          throw new McpError(
+            JsonRpcErrorCode.InvalidParams,
+            'Each batch_click action requires either ref or selector.',
+          );
+        }
+
+        const response = await requestCamofoxJson({
+          method: 'POST',
+          path: `/tabs/${encodeURIComponent(input.tabId)}/click`,
+          appContext,
+          body: {
+            userId,
+            ...(action.ref ? { ref: action.ref } : {}),
+            ...(action.selector ? { selector: action.selector } : {}),
+          },
+        });
+
+        results.push({ index, ok: true, response });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        results.push({ index, ok: false, error: message });
+      }
+
+      if (input.delayMs > 0 && index < input.actions.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, input.delayMs));
+      }
+    }
+
+    return {
+      tabId: input.tabId,
+      results,
+    };
+  }),
+};
+
+const WebSearchInputSchema = z
+  .object({
+    query: z.string().min(1).describe('Search query string.'),
+    engine: WebSearchEngineSchema.default('google'),
+    tabId: z
+      .string()
+      .optional()
+      .describe('Optional existing tab id. If omitted, a new tab is created.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    sessionKey: z
+      .string()
+      .optional()
+      .describe('Optional session key used when creating a tab.'),
+  })
+  .describe('Navigate a tab to a search result page using camofox macros.');
+
+const WebSearchOutputSchema = z
+  .object({
+    tabId: z.string().describe('Resolved tab id used for navigation.'),
+    createdTab: z.boolean().describe('Whether a new tab was created for this search.'),
+    engine: WebSearchEngineSchema,
+    macro: z.string().describe('Underlying camofox macro used for the search.'),
+    query: z.string().describe('Search query value.'),
+    url: z.string().describe('URL after navigation.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw navigation response payload.'),
+  })
+  .describe('Web-search navigation result.');
+
+export const webSearchTool: ToolDefinition<
+  typeof WebSearchInputSchema,
+  typeof WebSearchOutputSchema
+> = {
+  name: 'web_search',
+  title: 'Camofox Web Search',
+  description:
+    'Runs a web search macro (Google/YouTube/etc.) by navigating an existing or new tab.',
+  inputSchema: WebSearchInputSchema,
+  outputSchema: WebSearchOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const userId = resolveUserId(input.userId);
+    const sessionKey = resolveSessionKey(input.sessionKey);
+    const macro = WEB_SEARCH_MACROS[input.engine];
+
+    let tabId = input.tabId;
+    let createdTab = false;
+
+    if (!tabId) {
+      const createResponse = await requestCamofoxJson({
+        method: 'POST',
+        path: '/tabs',
+        appContext,
+        body: { userId, sessionKey },
+      });
+      const createdTabId = pickTabId(createResponse);
+      if (!createdTabId) {
+        throw new McpError(
+          JsonRpcErrorCode.SerializationError,
+          'web_search could not parse tabId from tab creation response.',
+          { createResponse },
+        );
+      }
+      tabId = createdTabId;
+      createdTab = true;
+    }
+
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(tabId)}/navigate`,
+      appContext,
+      body: {
+        userId,
+        macro,
+        query: input.query,
+      },
+    });
+
+    const url = getString(response.url);
+    if (!url) {
+      throw new McpError(
+        JsonRpcErrorCode.SerializationError,
+        'web_search could not parse url from navigation response.',
+        { response },
+      );
+    }
+
+    return {
+      tabId,
+      createdTab,
+      engine: input.engine,
+      macro,
+      query: input.query,
+      url,
+      response,
+    };
+  }),
+};
+
+export const serverStatusTool: ToolDefinition<
+  typeof HealthInputSchema,
+  typeof HealthOutputSchema
+> = {
+  name: 'server_status',
+  title: 'Server Status (Alias)',
+  description: 'Compatibility alias for camofox_health.',
+  inputSchema: HealthInputSchema,
+  outputSchema: HealthOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: camofoxHealthTool.logic,
+};
+
+export const listTabsTool: ToolDefinition<
+  typeof ListTabsInputSchema,
+  typeof ListTabsOutputSchema
+> = {
+  name: 'list_tabs',
+  title: 'List Tabs (Alias)',
+  description: 'Compatibility alias for camofox_list_tabs.',
+  inputSchema: ListTabsInputSchema,
+  outputSchema: ListTabsOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: camofoxListTabsTool.logic,
+};
+
+export const createTabTool: ToolDefinition<
+  typeof CreateTabInputSchema,
+  typeof CreateTabOutputSchema
+> = {
+  name: 'create_tab',
+  title: 'Create Tab (Alias)',
+  description: 'Compatibility alias for camofox_create_tab.',
+  inputSchema: CreateTabInputSchema,
+  outputSchema: CreateTabOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxCreateTabTool.logic,
+};
+
+export const navigateTool: ToolDefinition<
+  typeof NavigateTabInputSchema,
+  typeof NavigateTabOutputSchema
+> = {
+  name: 'navigate',
+  title: 'Navigate (Alias)',
+  description: 'Compatibility alias for camofox_navigate_tab.',
+  inputSchema: NavigateTabInputSchema,
+  outputSchema: NavigateTabOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxNavigateTabTool.logic,
+};
+
+export const snapshotTool: ToolDefinition<
+  typeof SnapshotInputSchema,
+  typeof SnapshotOutputSchema
+> = {
+  name: 'snapshot',
+  title: 'Snapshot (Alias)',
+  description: 'Compatibility alias for camofox_get_snapshot.',
+  inputSchema: SnapshotInputSchema,
+  outputSchema: SnapshotOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: camofoxGetSnapshotTool.logic,
+};
+
+export const typeTextTool: ToolDefinition<
+  typeof TypeInputSchema,
+  typeof TypeOutputSchema
+> = {
+  name: 'type_text',
+  title: 'Type Text (Alias)',
+  description: 'Compatibility alias for camofox_type.',
+  inputSchema: TypeInputSchema,
+  outputSchema: TypeOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxTypeTool.logic,
+};
+
+export const closeTabTool: ToolDefinition<
+  typeof CloseTabInputSchema,
+  typeof CloseTabOutputSchema
+> = {
+  name: 'close_tab',
+  title: 'Close Tab (Alias)',
+  description: 'Compatibility alias for camofox_close_tab.',
+  inputSchema: CloseTabInputSchema,
+  outputSchema: CloseTabOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxCloseTabTool.logic,
+};
+
+export const goBackTool: ToolDefinition<
+  typeof HistoryNavInputSchema,
+  typeof HistoryNavOutputSchema
+> = {
+  name: 'go_back',
+  title: 'Go Back (Alias)',
+  description: 'Compatibility alias for camofox_back.',
+  inputSchema: HistoryNavInputSchema,
+  outputSchema: HistoryNavOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxBackTool.logic,
+};
+
+export const goForwardTool: ToolDefinition<
+  typeof HistoryNavInputSchema,
+  typeof HistoryNavOutputSchema
+> = {
+  name: 'go_forward',
+  title: 'Go Forward (Alias)',
+  description: 'Compatibility alias for camofox_forward.',
+  inputSchema: HistoryNavInputSchema,
+  outputSchema: HistoryNavOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxForwardTool.logic,
+};
+
+export const refreshTool: ToolDefinition<
+  typeof HistoryNavInputSchema,
+  typeof HistoryNavOutputSchema
+> = {
+  name: 'refresh',
+  title: 'Refresh (Alias)',
+  description: 'Compatibility alias for camofox_refresh.',
+  inputSchema: HistoryNavInputSchema,
+  outputSchema: HistoryNavOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: camofoxRefreshTool.logic,
 };
 
 const StopInputSchema = z

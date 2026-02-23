@@ -38,8 +38,27 @@ const NUM_RUNS = 200;
 /** Tools excluded from logic execution during fuzz testing. */
 const LOGIC_SKIP = new Set<string>();
 
+const CAMOFOX_COMPATIBILITY_TOOLS = new Set([
+  'server_status',
+  'list_tabs',
+  'create_tab',
+  'navigate',
+  'snapshot',
+  'type_text',
+  'close_tab',
+  'go_back',
+  'go_forward',
+  'refresh',
+  'navigate_and_snapshot',
+  'scroll_and_snapshot',
+  'type_and_submit',
+  'fill_form',
+  'batch_click',
+  'web_search',
+]);
+
 const isCamofoxTool = (toolName: string): boolean => {
-  return toolName.startsWith('camofox_');
+  return toolName.startsWith('camofox_') || CAMOFOX_COMPATIBILITY_TOOLS.has(toolName);
 };
 
 // ─── Test Fixtures ───────────────────────────────────────────────────────────

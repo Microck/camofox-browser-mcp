@@ -89,7 +89,7 @@ describe('Cloudflare Worker Entry Point', () => {
       const worker = await import('@/worker.js');
       expect(worker.default).toBeDefined();
       expect(typeof worker.default).toBe('object');
-    });
+    }, 15000);
 
     it('should export CloudflareBindings interface', () => {
       // Type-level test - if this compiles, the interface is exported

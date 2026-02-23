@@ -91,7 +91,6 @@ export function createMcpToolHandler<
     // Create the application's internal logger/tracing context.
     const appContext: ElicitableContext =
       requestContextService.createRequestContext({
-        parentContext: sdkContext,
         operation: 'HandleToolRequest',
         additionalContext: { toolName, sessionId, input },
       });

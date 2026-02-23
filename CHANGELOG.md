@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.1.2] - 2026-02-23
+
+### Fixed
+
+- Resolved `The AbortSignal.aborted getter can only be used on instances of AbortSignal`
+  failures during MCP tool calls by avoiding propagation of raw SDK call-context
+  objects into request logging context.
+
+### Added
+
+- Regression coverage for tool/resource handler context safety when SDK/call context
+  contains problematic enumerable properties.
+- TypeScript declaration output in `dist/` to match published `types` entry.
+
 ## [0.1.1] - 2026-02-23
 
 ### Added
