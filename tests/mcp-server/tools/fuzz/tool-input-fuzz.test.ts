@@ -35,18 +35,8 @@ type AnyToolDef = ToolDefinition<
 /** Number of random inputs per property assertion. */
 const NUM_RUNS = 200;
 
-/**
- * Tools excluded from logic execution during fuzz testing.
- * These require external APIs, real SDK capabilities, or special execution models
- * that can't be stubbed with a minimal mock context.
- */
-const LOGIC_SKIP = new Set([
-  'template_cat_fact', // external HTTP API
-  'template_image_test', // external HTTP API
-  'template_code_review_sampling', // requires sdkContext.createMessage (sampling)
-  'template_madlibs_elicitation', // requires sdkContext.elicitInput (elicitation)
-  'template_data_explorer', // app-tool, non-deterministic output (Math.random)
-]);
+/** Tools excluded from logic execution during fuzz testing. */
+const LOGIC_SKIP = new Set<string>();
 
 const isCamofoxTool = (toolName: string): boolean => {
   return toolName.startsWith('camofox_');

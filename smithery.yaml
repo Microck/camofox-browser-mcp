@@ -16,13 +16,33 @@ startCommand:
         type: string
         default: 'info'
         description: 'Minimum logging level.'
+      CAMOFOX_BASE_URL:
+        type: string
+        default: 'http://127.0.0.1:9377'
+        description: 'Base URL for the camofox-browser backend.'
+      CAMOFOX_DEFAULT_USER_ID:
+        type: string
+        default: 'default-user'
+        description: 'Default user ID used when tools omit userId.'
+      CAMOFOX_DEFAULT_SESSION_KEY:
+        type: string
+        default: 'default-session'
+        description: 'Default session key used when tools omit sessionKey.'
+      CAMOFOX_API_KEY:
+        type: string
+        default: ''
+        description: 'Optional API key used by cookie import endpoints.'
   commandFunction: |
     (config) => ({
       "command": "bunx",
-      "args": ["mcp-ts-template"],
+      "args": ["camofox-browser-mcp"],
       "env": {
         "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
         "MCP_HTTP_PORT": config.MCP_HTTP_PORT,
-        "MCP_LOG_LEVEL": config.MCP_LOG_LEVEL
+        "MCP_LOG_LEVEL": config.MCP_LOG_LEVEL,
+        "CAMOFOX_BASE_URL": config.CAMOFOX_BASE_URL,
+        "CAMOFOX_DEFAULT_USER_ID": config.CAMOFOX_DEFAULT_USER_ID,
+        "CAMOFOX_DEFAULT_SESSION_KEY": config.CAMOFOX_DEFAULT_SESSION_KEY,
+        "CAMOFOX_API_KEY": config.CAMOFOX_API_KEY
       }
     })

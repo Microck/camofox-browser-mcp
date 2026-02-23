@@ -1079,4 +1079,4 @@ export const myTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
 - [Resources Module](resources/README.md) - Resource development guide
 - [Transports Module](transports/README.md) - Transport configuration
 - [Services Module](../services/README.md) - External service integration
-- [CLAUDE.md](../../CLAUDE.md) - Architectural mandate
+- [Root README](../../README.md) - Project setup and usage

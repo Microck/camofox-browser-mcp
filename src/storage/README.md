@@ -687,8 +687,8 @@ Run tests: `bun run test tests/storage/providers/{provider-name}/`
 2. **Update root README:**
    - Add environment variables to configuration table
 
-3. **Update AGENTS.md:**
-   - Add provider to storage provider list
+3. **Update technical docs:**
+   - Add provider notes in relevant module READMEs when behavior differs
 
 ### Reference Implementation
 
@@ -748,4 +748,4 @@ await storage.setMany(entries, context);
 **End of Storage Module Documentation**
 
 For general MCP server documentation, see the [root README](../../README.md).
-For strict development rules and agent guidance, see [AGENTS.md](../../AGENTS.md).
+For project-level setup and usage, see the [root README](../../README.md).

@@ -836,4 +836,4 @@ API_KEY=your-key-here
 
 - [Container Module](../container/README.md) - Dependency injection setup
 - [Storage Module](../storage/README.md) - Data persistence patterns
-- [CLAUDE.md](../../CLAUDE.md) - Architectural mandate (Section V)
+- [Root README](../../README.md) - Project setup and usage

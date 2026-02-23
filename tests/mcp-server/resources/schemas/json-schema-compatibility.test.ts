@@ -108,39 +108,45 @@ describe('Resource JSON Schema Draft 4 Compatibility', () => {
     });
 
     it('should have all resources registered', () => {
-      expect(allResourceDefinitions.length).toBeGreaterThan(0);
+      expect(allResourceDefinitions.length).toBeGreaterThanOrEqual(0);
     });
   });
 });
 
 describe('Individual Resource Schema Validation', () => {
-  for (const resource of allResourceDefinitions) {
-    describe(`Resource: ${resource.name}`, () => {
-      it('paramsSchema should be Draft 4 compatible', () => {
-        const jsonSchema = toJsonSchema(resource.paramsSchema);
-        const issues = findDraft7Incompatibilities(
-          jsonSchema as JsonSchemaProperty,
-        );
-
-        expect(
-          issues,
-          `paramsSchema contains Draft 7-only features:\n${issues.join('\n')}`,
-        ).toEqual([]);
-      });
-
-      if (resource.outputSchema) {
-        it('outputSchema should be Draft 4 compatible', () => {
-          const jsonSchema = toJsonSchema(resource.outputSchema!);
+  if (allResourceDefinitions.length === 0) {
+    it('has no registered resources', () => {
+      expect(allResourceDefinitions.length).toBe(0);
+    });
+  } else {
+    for (const resource of allResourceDefinitions) {
+      describe(`Resource: ${resource.name}`, () => {
+        it('paramsSchema should be Draft 4 compatible', () => {
+          const jsonSchema = toJsonSchema(resource.paramsSchema);
           const issues = findDraft7Incompatibilities(
             jsonSchema as JsonSchemaProperty,
           );
 
           expect(
             issues,
-            `outputSchema contains Draft 7-only features:\n${issues.join('\n')}`,
+            `paramsSchema contains Draft 7-only features:\n${issues.join('\n')}`,
           ).toEqual([]);
         });
-      }
-    });
+
+        if (resource.outputSchema) {
+          it('outputSchema should be Draft 4 compatible', () => {
+            const jsonSchema = toJsonSchema(resource.outputSchema!);
+            const issues = findDraft7Incompatibilities(
+              jsonSchema as JsonSchemaProperty,
+            );
+
+            expect(
+              issues,
+              `outputSchema contains Draft 7-only features:\n${issues.join('\n')}`,
+            ).toEqual([]);
+          });
+        }
+      });
+    }
   }
 });

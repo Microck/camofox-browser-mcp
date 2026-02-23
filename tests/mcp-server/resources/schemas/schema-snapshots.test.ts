@@ -9,23 +9,29 @@ import { z } from 'zod';
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 
 describe('Resource Schema Snapshots', () => {
-  for (const resource of allResourceDefinitions) {
-    describe(`Resource: ${resource.name}`, () => {
-      it('paramsSchema JSON output should be stable', () => {
-        const jsonSchema = z.toJSONSchema(resource.paramsSchema, {
-          target: 'draft-7',
-        });
-        expect(jsonSchema).toMatchSnapshot();
-      });
-
-      if (resource.outputSchema) {
-        it('outputSchema JSON output should be stable', () => {
-          const jsonSchema = z.toJSONSchema(resource.outputSchema!, {
+  if (allResourceDefinitions.length === 0) {
+    it('has no registered resources', () => {
+      expect(allResourceDefinitions.length).toBe(0);
+    });
+  } else {
+    for (const resource of allResourceDefinitions) {
+      describe(`Resource: ${resource.name}`, () => {
+        it('paramsSchema JSON output should be stable', () => {
+          const jsonSchema = z.toJSONSchema(resource.paramsSchema, {
             target: 'draft-7',
           });
           expect(jsonSchema).toMatchSnapshot();
         });
-      }
-    });
+
+        if (resource.outputSchema) {
+          it('outputSchema JSON output should be stable', () => {
+            const jsonSchema = z.toJSONSchema(resource.outputSchema!, {
+              target: 'draft-7',
+            });
+            expect(jsonSchema).toMatchSnapshot();
+          });
+        }
+      });
+    }
   }
 });

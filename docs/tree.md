@@ -1,44 +1,16 @@
-# mcp-ts-template - Directory Structure
+# camofox-browser-mcp - Directory Structure
 
-Generated on: 2026-02-18 14:11:47
+Generated on: 2026-02-23 18:21:11
 
 ```
-mcp-ts-template/
-├── .github/
-│   ├── codeql/
-│   │   └── codeql-config.yml
-│   ├── workflows/
-│   │   └── ci.yml
-│   └── FUNDING.yml
+camofox-browser-mcp/
+├── .codex/
+│   └── INSTALL.md
 ├── .husky/
 │   └── pre-commit
-├── .storage/
-├── .vscode/
-│   └── settings.json
-├── changelog/
-│   ├── archive1.md
-│   └── archive2.md
+├── .opencode/
+│   └── INSTALL.md
 ├── docs/
-│   ├── mcp-specification/
-│   │   └── 2025-06-18/
-│   │       ├── best-practices/
-│   │       │   └── security.md
-│   │       ├── core/
-│   │       │   ├── authorization.md
-│   │       │   ├── lifecycle.md
-│   │       │   ├── overview.md
-│   │       │   └── transports.md
-│   │       └── utils/
-│   │           ├── cancellation.md
-│   │           ├── completion.md
-│   │           ├── logging.md
-│   │           ├── pagination.md
-│   │           ├── ping.md
-│   │           └── progress.md
-│   ├── mcp-apps.md
-│   ├── mcp-elicitation-summary.md
-│   ├── mcp-sdk-changes.md
-│   └── publishing-mcp-server-registry.md
 ├── schemas/
 │   └── cloudflare-d1-schema.sql
 ├── scripts/
@@ -64,15 +36,12 @@ mcp-ts-template/
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── definitions/
-│   │   │   │   ├── code-review.prompt.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   └── promptDefinition.ts
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources/
 │   │   │   ├── definitions/
-│   │   │   │   ├── data-explorer-ui.app-resource.ts
-│   │   │   │   ├── echo.resource.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── resourceDefinition.ts
@@ -90,14 +59,8 @@ mcp-ts-template/
 │   │   │   └── index.ts
 │   │   ├── tools/
 │   │   │   ├── definitions/
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── template-async-countdown.task-tool.ts
-│   │   │   │   ├── template-cat-fact.tool.ts
-│   │   │   │   ├── template-code-review-sampling.tool.ts
-│   │   │   │   ├── template-data-explorer.app-tool.ts
-│   │   │   │   ├── template-echo-message.tool.ts
-│   │   │   │   ├── template-image-test.tool.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.ts
+│   │   │   │   ├── camofox-browser.tool.ts
+│   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── index.ts
 │   │   │   │   ├── toolDefinition.ts
@@ -136,7 +99,6 @@ mcp-ts-template/
 │   │   │   ├── core/
 │   │   │   │   ├── GraphService.ts
 │   │   │   │   └── IGraphProvider.ts
-│   │   │   ├── providers/
 │   │   │   ├── index.ts
 │   │   │   └── types.ts
 │   │   ├── llm/
@@ -247,11 +209,7 @@ mcp-ts-template/
 │   │   ├── helpers/
 │   │   │   ├── assertions.ts
 │   │   │   └── server-harness.ts
-│   │   ├── lifecycle.test.ts
-│   │   ├── prompts.test.ts
-│   │   ├── protocol-init.test.ts
-│   │   ├── resources.test.ts
-│   │   └── tools.test.ts
+│   │   └── protocol-init.test.ts
 │   ├── container/
 │   │   ├── registrations/
 │   │   │   ├── core.test.ts
@@ -264,14 +222,11 @@ mcp-ts-template/
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── definitions/
-│   │   │   │   └── code-review.prompt.test.ts
 │   │   │   ├── utils/
 │   │   │   │   └── promptDefinition.test.ts
 │   │   │   └── prompt-registration.test.ts
 │   │   ├── resources/
 │   │   │   ├── definitions/
-│   │   │   │   ├── data-explorer-ui.app-resource.test.ts
-│   │   │   │   ├── echo.resource.test.ts
 │   │   │   │   └── index.test.ts
 │   │   │   ├── schemas/
 │   │   │   │   ├── __snapshots__/
@@ -292,14 +247,7 @@ mcp-ts-template/
 │   │   │       └── taskToolDefinition.test.ts
 │   │   ├── tools/
 │   │   │   ├── definitions/
-│   │   │   │   ├── index.test.ts
-│   │   │   │   ├── template-async-countdown.task-tool.test.ts
-│   │   │   │   ├── template-cat-fact.tool.test.ts
-│   │   │   │   ├── template-code-review-sampling.tool.test.ts
-│   │   │   │   ├── template-data-explorer.app-tool.test.ts
-│   │   │   │   ├── template-echo-message.tool.test.ts
-│   │   │   │   ├── template-image-test.tool.test.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.test.ts
+│   │   │   │   └── index.test.ts
 │   │   │   ├── fuzz/
 │   │   │   │   └── tool-input-fuzz.test.ts
 │   │   │   ├── schemas/
@@ -462,11 +410,9 @@ mcp-ts-template/
 ├── .gitignore
 ├── .prettierignore
 ├── .prettierrc.json
-├── AGENTS.md
 ├── bun.lock
 ├── bunfig.toml
 ├── CHANGELOG.md
-├── CLAUDE.md
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE

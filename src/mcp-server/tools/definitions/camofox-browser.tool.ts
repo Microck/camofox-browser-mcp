@@ -127,7 +127,7 @@ async function requestCamofoxJson({
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  const json = (await response.json()) as unknown;
+  const json = (await response.json());
   if (!isRecord(json)) {
     throw new McpError(
       JsonRpcErrorCode.SerializationError,

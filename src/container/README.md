@@ -326,4 +326,4 @@ afterEach(() => {
 - [Services Module](../services/README.md) — Service development pattern
 - [MCP Server Module](../mcp-server/README.md) — Using DI in tools/resources
 - [Storage Module](../storage/README.md) — Storage service injection
-- [AGENTS.md](../../AGENTS.md) — Architectural mandate (Section VI)
+- [Root README](../../README.md) — Project setup and usage
