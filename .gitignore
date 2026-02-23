@@ -41,6 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 .tsbuildinfo
 .tsbuildinfo.scripts
+.tsbuildinfo.build
 .tscache/
 *.js.map
 *.mjs.map
