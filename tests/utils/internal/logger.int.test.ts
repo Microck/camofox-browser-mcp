@@ -356,64 +356,73 @@ describe('Logger Transport Mode Handling', () => {
       rmSync(stdioTestLogDir, { recursive: true, force: true });
     }
 
-    // Initialize with STDIO transport mode
-    await stdioLogger.initialize('info', 'stdio');
+    try {
+      // Initialize with STDIO transport mode
+      await stdioLogger.initialize('info', 'stdio');
 
-    // Wait for logger to initialize file transports
-    await new Promise((res) => setTimeout(res, 100));
+      // Write a test message
+      stdioLogger.info('STDIO transport test message', {
+        testId: 'stdio-ansi-test',
+        requestId: 'test-stdio-1',
+        timestamp: new Date().toISOString(),
+      });
 
-    // Write a test message
-    stdioLogger.info('STDIO transport test message', {
-      testId: 'stdio-ansi-test',
-      requestId: 'test-stdio-1',
-      timestamp: new Date().toISOString(),
-    });
+      // Wait until our log entry is durably written to the file.
+      // This test is sensitive to I/O timing when running in parallel with other suites.
+      await vi.waitFor(
+        () => {
+          expect(existsSync(stdioTestLogPath)).toBe(true);
+          const logContent = readFileSync(stdioTestLogPath, 'utf-8');
+          const logs = logContent
+            .split('\n')
+            .filter((line) => line.trim() !== '')
+            .map((line) => JSON.parse(line));
 
-    // Wait for log to be written
-    await new Promise((res) => setTimeout(res, 100));
+          expect(logs.find((log) => log.testId === 'stdio-ansi-test')).toBeDefined();
+        },
+        { timeout: 2000, interval: 50 },
+      );
 
-    // Read the log file to verify output format
-    expect(existsSync(stdioTestLogPath)).toBe(true);
+      const logContent = readFileSync(stdioTestLogPath, 'utf-8');
 
-    const logContent = readFileSync(stdioTestLogPath, 'utf-8');
+      // CRITICAL: Check for ANSI escape codes (e.g., [35m, [39m, [32m, etc.)
+      // The MCP specification requires clean JSON output with no color codes
+      const ansiPattern = /\x1b\[\d+m/;
+      expect(ansiPattern.test(logContent)).toBe(false);
 
-    // CRITICAL: Check for ANSI escape codes (e.g., [35m, [39m, [32m, etc.)
-    // The MCP specification requires clean JSON output with no color codes
-    const ansiPattern = /\x1b\[\d+m/;
-    expect(ansiPattern.test(logContent)).toBe(false);
+      // Verify the log entry is valid JSON (MCP clients must be able to parse)
+      const logLines = logContent
+        .split('\n')
+        .filter((line) => line.trim() !== '');
 
-    // Verify the log entry is valid JSON (MCP clients must be able to parse)
-    const logLines = logContent
-      .split('\n')
-      .filter((line) => line.trim() !== '');
+      expect(logLines.length).toBeGreaterThan(0);
 
-    expect(logLines.length).toBeGreaterThan(0);
+      for (const line of logLines) {
+        expect(() => JSON.parse(line)).not.toThrow();
+      }
 
-    for (const line of logLines) {
-      expect(() => JSON.parse(line)).not.toThrow();
-    }
+      // Verify our test message was logged with correct content
+      const logs = logLines.map((line) => JSON.parse(line));
+      const testLog = logs.find((log) => log.testId === 'stdio-ansi-test');
+      expect(testLog).toBeDefined();
+      expect(testLog.msg).toBe('STDIO transport test message');
 
-    // Verify our test message was logged with correct content
-    const logs = logLines.map((line) => JSON.parse(line));
-    const testLog = logs.find((log) => log.testId === 'stdio-ansi-test');
-    expect(testLog).toBeDefined();
-    expect(testLog.msg).toBe('STDIO transport test message');
+      // Verify logger was initialized with stdio transport awareness
+      expect(stdioLogger.isInitialized()).toBe(true);
+    } finally {
+      // Cleanup
+      await stdioLogger.close();
+      if (existsSync(stdioTestLogDir)) {
+        rmSync(stdioTestLogDir, { recursive: true, force: true });
+      }
 
-    // Verify logger was initialized with stdio transport awareness
-    expect(stdioLogger.isInitialized()).toBe(true);
-
-    // Cleanup
-    await stdioLogger.close();
-    if (existsSync(stdioTestLogDir)) {
-      rmSync(stdioTestLogDir, { recursive: true, force: true });
-    }
-
-    // Restore original config and environment
-    config.logsPath = originalLogsPath;
-    if (originalEnableTestLogs !== undefined) {
-      process.env.ENABLE_TEST_LOGS = originalEnableTestLogs;
-    } else {
-      delete process.env.ENABLE_TEST_LOGS;
+      // Restore original config and environment
+      config.logsPath = originalLogsPath;
+      if (originalEnableTestLogs !== undefined) {
+        process.env.ENABLE_TEST_LOGS = originalEnableTestLogs;
+      } else {
+        delete process.env.ENABLE_TEST_LOGS;
+      }
     }
   });
 
