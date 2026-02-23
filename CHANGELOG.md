@@ -16,6 +16,12 @@ All notable changes to this project are documented in this file.
   contains problematic enumerable properties.
 - TypeScript declaration output in `dist/` to match published `types` entry.
 
+## [0.1.3] - 2026-02-23
+
+### Changed
+
+- README npm badges now link to the npm package page and show version/downloads.
+
 ## [0.1.1] - 2026-02-23
 
 ### Added
