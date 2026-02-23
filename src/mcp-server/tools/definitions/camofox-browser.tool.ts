@@ -956,3 +956,661 @@ export const camofoxImportCookiesTool: ToolDefinition<
     };
   }),
 };
+
+async function requestCamofoxBinary({
+  method,
+  path,
+  appContext,
+  body,
+  query,
+  headers,
+}: {
+  method: 'GET' | 'POST' | 'DELETE';
+  path: string;
+  appContext: RequestContext;
+  body?: Record<string, unknown>;
+  query?: Record<string, string | number | boolean | undefined>;
+  headers?: Record<string, string>;
+}): Promise<{ buffer: Buffer; contentType: string | null }> {
+  const url = buildCamofoxUrl(path, query);
+  logger.debug(`Calling camofox binary endpoint ${method} ${url}`, appContext);
+
+  const response = await fetchWithTimeout(url, config.camofox.timeoutMs, appContext, {
+    method,
+    headers: {
+      Accept: '*/*',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(headers ?? {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+
+  const arrayBuffer = await response.arrayBuffer();
+  return {
+    buffer: Buffer.from(arrayBuffer),
+    contentType: response.headers.get('content-type'),
+  };
+}
+
+const PressInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id where keypress should happen.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    key: z.string().min(1).describe('Keyboard key to press (for example Enter, Escape, ArrowDown).'),
+  })
+  .describe('Press a keyboard key in the active tab context.');
+
+const PressOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    key: z.string().describe('Pressed key.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /tabs/:tabId/press.'),
+  })
+  .describe('Keypress action result.');
+
+export const camofoxPressTool: ToolDefinition<
+  typeof PressInputSchema,
+  typeof PressOutputSchema
+> = {
+  name: 'camofox_press',
+  title: 'Camofox Press Key',
+  description:
+    'Presses a keyboard key in the target tab (for example Enter, Escape, ArrowDown).',
+  inputSchema: PressInputSchema,
+  outputSchema: PressOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/press`,
+      appContext,
+      body: {
+        userId: resolveUserId(input.userId),
+        key: input.key,
+      },
+    });
+
+    return {
+      tabId: input.tabId,
+      key: input.key,
+      response,
+    };
+  }),
+};
+
+const WaitInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id to wait on.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    timeoutMs: z
+      .number()
+      .int()
+      .min(1)
+      .max(120000)
+      .default(10000)
+      .describe('Maximum wait time in milliseconds.'),
+    waitForNetwork: z
+      .boolean()
+      .default(true)
+      .describe('If true, also waits for network idle when possible.'),
+  })
+  .describe('Wait until page is ready after navigation or dynamic updates.');
+
+const WaitOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    ready: z.boolean().describe('Whether the page reached ready state.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /tabs/:tabId/wait.'),
+  })
+  .describe('Page readiness wait result.');
+
+export const camofoxWaitTool: ToolDefinition<
+  typeof WaitInputSchema,
+  typeof WaitOutputSchema
+> = {
+  name: 'camofox_wait',
+  title: 'Camofox Wait',
+  description:
+    'Waits for the target tab page to settle, useful after navigations and async content updates.',
+  inputSchema: WaitInputSchema,
+  outputSchema: WaitOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/wait`,
+      appContext,
+      body: {
+        userId: resolveUserId(input.userId),
+        timeout: input.timeoutMs,
+        waitForNetwork: input.waitForNetwork,
+      },
+    });
+
+    return {
+      tabId: input.tabId,
+      ready: getBoolean(response.ready) ?? false,
+      response,
+    };
+  }),
+};
+
+const HistoryNavInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id to navigate in history.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+  })
+  .describe('Navigate browser history within a tab.');
+
+const HistoryNavOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    url: z.string().optional().describe('Current URL after the history action.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from the history endpoint.'),
+  })
+  .describe('History navigation result.');
+
+export const camofoxBackTool: ToolDefinition<
+  typeof HistoryNavInputSchema,
+  typeof HistoryNavOutputSchema
+> = {
+  name: 'camofox_back',
+  title: 'Camofox Back',
+  description: 'Navigates one step back in the tab history.',
+  inputSchema: HistoryNavInputSchema,
+  outputSchema: HistoryNavOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/back`,
+      appContext,
+      body: { userId: resolveUserId(input.userId) },
+    });
+
+    return {
+      tabId: input.tabId,
+      ...(getString(response.url) ? { url: getString(response.url) } : {}),
+      response,
+    };
+  }),
+};
+
+export const camofoxForwardTool: ToolDefinition<
+  typeof HistoryNavInputSchema,
+  typeof HistoryNavOutputSchema
+> = {
+  name: 'camofox_forward',
+  title: 'Camofox Forward',
+  description: 'Navigates one step forward in the tab history.',
+  inputSchema: HistoryNavInputSchema,
+  outputSchema: HistoryNavOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/forward`,
+      appContext,
+      body: { userId: resolveUserId(input.userId) },
+    });
+
+    return {
+      tabId: input.tabId,
+      ...(getString(response.url) ? { url: getString(response.url) } : {}),
+      response,
+    };
+  }),
+};
+
+export const camofoxRefreshTool: ToolDefinition<
+  typeof HistoryNavInputSchema,
+  typeof HistoryNavOutputSchema
+> = {
+  name: 'camofox_refresh',
+  title: 'Camofox Refresh',
+  description: 'Reloads the current page in the target tab.',
+  inputSchema: HistoryNavInputSchema,
+  outputSchema: HistoryNavOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/refresh`,
+      appContext,
+      body: { userId: resolveUserId(input.userId) },
+    });
+
+    return {
+      tabId: input.tabId,
+      ...(getString(response.url) ? { url: getString(response.url) } : {}),
+      response,
+    };
+  }),
+};
+
+const LinkItemSchema = z
+  .object({
+    url: z.string().describe('Absolute URL for the extracted link.'),
+    text: z.string().describe('Link text content (possibly empty).'),
+  })
+  .describe('Extracted page link item.');
+
+const GetLinksInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id where links should be extracted.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .default(50)
+      .describe('Maximum number of links to return in this page.'),
+    offset: z
+      .number()
+      .int()
+      .min(0)
+      .default(0)
+      .describe('Offset into the extracted links list.'),
+  })
+  .describe('Extract links from the current page with pagination support.');
+
+const GetLinksOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    links: z.array(LinkItemSchema).describe('Extracted link items.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /tabs/:tabId/links.'),
+  })
+  .describe('Link extraction result.');
+
+export const camofoxGetLinksTool: ToolDefinition<
+  typeof GetLinksInputSchema,
+  typeof GetLinksOutputSchema
+> = {
+  name: 'camofox_get_links',
+  title: 'Camofox Get Links',
+  description: 'Extracts and paginates HTTP links from the current tab page.',
+  inputSchema: GetLinksInputSchema,
+  outputSchema: GetLinksOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'GET',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/links`,
+      appContext,
+      query: {
+        userId: resolveUserId(input.userId),
+        limit: input.limit,
+        offset: input.offset,
+      },
+    });
+
+    const links = Array.isArray(response.links)
+      ? response.links
+          .filter((entry): entry is Record<string, unknown> => isRecord(entry))
+          .map((entry) => ({
+            url: getString(entry.url) ?? '',
+            text: getString(entry.text) ?? '',
+          }))
+      : [];
+
+    return {
+      tabId: input.tabId,
+      links,
+      response,
+    };
+  }),
+};
+
+const ScreenshotInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id for screenshot capture.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    fullPage: z
+      .boolean()
+      .default(false)
+      .describe('If true, captures the full scrollable page.'),
+  })
+  .describe('Capture a PNG screenshot from the target tab.');
+
+const ScreenshotOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    mimeType: z.string().describe('MIME type reported by the endpoint.'),
+    imageBase64: z.string().describe('Base64 encoded PNG screenshot payload.'),
+    bytes: z.number().int().describe('Binary screenshot payload size in bytes.'),
+  })
+  .describe('Screenshot capture result.');
+
+export const camofoxScreenshotTool: ToolDefinition<
+  typeof ScreenshotInputSchema,
+  typeof ScreenshotOutputSchema
+> = {
+  name: 'camofox_screenshot',
+  title: 'Camofox Screenshot',
+  description: 'Captures a PNG screenshot for the target tab.',
+  inputSchema: ScreenshotInputSchema,
+  outputSchema: ScreenshotOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const binary = await requestCamofoxBinary({
+      method: 'GET',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/screenshot`,
+      appContext,
+      query: {
+        userId: resolveUserId(input.userId),
+        fullPage: input.fullPage,
+      },
+    });
+
+    return {
+      tabId: input.tabId,
+      mimeType: binary.contentType ?? 'image/png',
+      imageBase64: binary.buffer.toString('base64'),
+      bytes: binary.buffer.byteLength,
+    };
+  }),
+};
+
+const StatsInputSchema = z
+  .object({
+    tabId: z.string().min(1).describe('Tab id to inspect.'),
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+  })
+  .describe('Fetch tab statistics and usage metadata.');
+
+const StatsOutputSchema = z
+  .object({
+    tabId: z.string().describe('Target tab id.'),
+    url: z.string().optional().describe('Current tab URL.'),
+    sessionKey: z.string().optional().describe('Session key/tab group identifier.'),
+    listItemId: z.string().optional().describe('Legacy alias for session key.'),
+    visitedUrls: z.array(z.string()).describe('Previously visited URLs tracked for the tab.'),
+    toolCalls: z.number().int().describe('Number of interactions performed on this tab.'),
+    refsCount: z.number().int().describe('Number of active element refs currently tracked.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /tabs/:tabId/stats.'),
+  })
+  .describe('Tab statistics result.');
+
+export const camofoxGetStatsTool: ToolDefinition<
+  typeof StatsInputSchema,
+  typeof StatsOutputSchema
+> = {
+  name: 'camofox_get_stats',
+  title: 'Camofox Get Stats',
+  description: 'Returns per-tab stats including visited URLs, tool call count, and ref count.',
+  inputSchema: StatsInputSchema,
+  outputSchema: StatsOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'GET',
+      path: `/tabs/${encodeURIComponent(input.tabId)}/stats`,
+      appContext,
+      query: { userId: resolveUserId(input.userId) },
+    });
+
+    const visitedUrls = Array.isArray(response.visitedUrls)
+      ? response.visitedUrls.filter((entry): entry is string => typeof entry === 'string')
+      : [];
+
+    return {
+      tabId: input.tabId,
+      ...(getString(response.url) ? { url: getString(response.url) } : {}),
+      ...(getString(response.sessionKey)
+        ? { sessionKey: getString(response.sessionKey) }
+        : {}),
+      ...(getString(response.listItemId)
+        ? { listItemId: getString(response.listItemId) }
+        : {}),
+      visitedUrls,
+      toolCalls: getNumber(response.toolCalls) ?? 0,
+      refsCount: getNumber(response.refsCount) ?? 0,
+      response,
+    };
+  }),
+};
+
+const CloseGroupInputSchema = z
+  .object({
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+    sessionKey: z
+      .string()
+      .optional()
+      .describe('Preferred tab group identifier to close.'),
+    listItemId: z
+      .string()
+      .optional()
+      .describe('Legacy tab group identifier alias for sessionKey.'),
+  })
+  .describe('Close all tabs in a tab group/session key.');
+
+const CloseGroupOutputSchema = z
+  .object({
+    userId: z.string().describe('Resolved user id.'),
+    sessionKey: z.string().describe('Closed group key.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from DELETE /tabs/group/:listItemId.'),
+  })
+  .describe('Close tab group result.');
+
+export const camofoxCloseTabGroupTool: ToolDefinition<
+  typeof CloseGroupInputSchema,
+  typeof CloseGroupOutputSchema
+> = {
+  name: 'camofox_close_tab_group',
+  title: 'Camofox Close Tab Group',
+  description: 'Closes every tab in a specific session key/tab group.',
+  inputSchema: CloseGroupInputSchema,
+  outputSchema: CloseGroupOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const sessionKey = input.sessionKey ?? input.listItemId;
+    if (!sessionKey || sessionKey.trim().length === 0) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Provide sessionKey or listItemId to close a tab group.',
+      );
+    }
+
+    const userId = resolveUserId(input.userId);
+    const response = await requestCamofoxJson({
+      method: 'DELETE',
+      path: `/tabs/group/${encodeURIComponent(sessionKey)}`,
+      appContext,
+      body: { userId },
+    });
+
+    return {
+      userId,
+      sessionKey,
+      response,
+    };
+  }),
+};
+
+const CloseSessionInputSchema = z
+  .object({
+    userId: z
+      .string()
+      .optional()
+      .describe('Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.'),
+  })
+  .describe('Close an entire user browser session and all related tabs.');
+
+const CloseSessionOutputSchema = z
+  .object({
+    userId: z.string().describe('Closed user id.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from DELETE /sessions/:userId.'),
+  })
+  .describe('Close session result.');
+
+export const camofoxCloseSessionTool: ToolDefinition<
+  typeof CloseSessionInputSchema,
+  typeof CloseSessionOutputSchema
+> = {
+  name: 'camofox_close_session',
+  title: 'Camofox Close Session',
+  description: 'Closes all tabs and browser context state for a user session.',
+  inputSchema: CloseSessionInputSchema,
+  outputSchema: CloseSessionOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const userId = resolveUserId(input.userId);
+    const response = await requestCamofoxJson({
+      method: 'DELETE',
+      path: `/sessions/${encodeURIComponent(userId)}`,
+      appContext,
+    });
+
+    return {
+      userId,
+      response,
+    };
+  }),
+};
+
+const StopInputSchema = z
+  .object({
+    adminKey: z
+      .string()
+      .optional()
+      .describe('Optional admin key override. Defaults to CAMOFOX_ADMIN_KEY.'),
+  })
+  .describe('Stop the browser engine and clear all sessions.');
+
+const StopOutputSchema = z
+  .object({
+    stopped: z.boolean().describe('Whether stop operation was acknowledged.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from POST /stop.'),
+  })
+  .describe('Stop browser result.');
+
+export const camofoxStopBrowserTool: ToolDefinition<
+  typeof StopInputSchema,
+  typeof StopOutputSchema
+> = {
+  name: 'camofox_stop_browser',
+  title: 'Camofox Stop Browser',
+  description: 'Stops the camofox browser engine and clears all active sessions.',
+  inputSchema: StopInputSchema,
+  outputSchema: StopOutputSchema,
+  annotations: TOOL_ANNOTATIONS_MUTATING,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const adminKey = input.adminKey ?? config.camofox.adminKey;
+    if (!adminKey) {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'CAMOFOX_ADMIN_KEY is required for camofox_stop_browser.',
+      );
+    }
+
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: '/stop',
+      appContext,
+      headers: { 'x-admin-key': adminKey },
+    });
+
+    return {
+      stopped: getBoolean(response.stopped) ?? getBoolean(response.ok) ?? false,
+      response,
+    };
+  }),
+};
+
+const YoutubeTranscriptInputSchema = z
+  .object({
+    url: z.string().url().describe('YouTube video URL to extract captions from.'),
+    languages: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('Optional preferred language codes in priority order, e.g. ["en"].'),
+  })
+  .describe('Extract transcript text from a YouTube video via camofox-browser backend.');
+
+const YoutubeTranscriptOutputSchema = z
+  .object({
+    status: z.string().optional().describe('Backend status string, usually ok or error.'),
+    transcript: z.string().optional().describe('Extracted transcript text when available.'),
+    totalWords: z
+      .number()
+      .int()
+      .optional()
+      .describe('Total number of words in transcript, if provided.'),
+    response: z
+      .record(z.string(), z.unknown())
+      .describe('Raw response from /youtube/transcript.'),
+  })
+  .describe('YouTube transcript extraction result.');
+
+export const camofoxYoutubeTranscriptTool: ToolDefinition<
+  typeof YoutubeTranscriptInputSchema,
+  typeof YoutubeTranscriptOutputSchema
+> = {
+  name: 'camofox_youtube_transcript',
+  title: 'Camofox YouTube Transcript',
+  description:
+    'Extracts available YouTube captions/transcript text for a provided video URL.',
+  inputSchema: YoutubeTranscriptInputSchema,
+  outputSchema: YoutubeTranscriptOutputSchema,
+  annotations: TOOL_ANNOTATIONS_READ_ONLY,
+  logic: withToolAuth(CAMOFOX_SCOPE, async (input, appContext, _sdkContext) => {
+    const response = await requestCamofoxJson({
+      method: 'POST',
+      path: '/youtube/transcript',
+      appContext,
+      body: {
+        url: input.url,
+        ...(input.languages ? { languages: input.languages } : {}),
+      },
+    });
+
+    return {
+      ...(getString(response.status) ? { status: getString(response.status) } : {}),
+      ...(getString(response.transcript)
+        ? { transcript: getString(response.transcript) }
+        : {}),
+      ...(getNumber(response.total_words) !== undefined
+        ? { totalWords: getNumber(response.total_words) }
+        : {}),
+      response,
+    };
+  }),
+};

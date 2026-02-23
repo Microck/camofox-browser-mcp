@@ -6,14 +6,14 @@
     "url": "https://github.com/Microck/camofox-browser-mcp",
     "source": "github"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "camofox-browser-mcp",
       "runtimeHint": "bun",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "packageArguments": [
         {
           "type": "positional",
@@ -31,6 +31,39 @@
           "format": "string",
           "isRequired": false,
           "default": "info"
+        },
+        {
+          "name": "CAMOFOX_BASE_URL",
+          "description": "Base URL of the running camofox-browser backend.",
+          "format": "string",
+          "isRequired": false,
+          "default": "http://127.0.0.1:9377"
+        },
+        {
+          "name": "CAMOFOX_DEFAULT_USER_ID",
+          "description": "Default user ID used when tool inputs omit userId.",
+          "format": "string",
+          "isRequired": false,
+          "default": "default-user"
+        },
+        {
+          "name": "CAMOFOX_DEFAULT_SESSION_KEY",
+          "description": "Default session key used when tool inputs omit sessionKey.",
+          "format": "string",
+          "isRequired": false,
+          "default": "default-session"
+        },
+        {
+          "name": "CAMOFOX_API_KEY",
+          "description": "Optional API key for cookie import endpoint.",
+          "format": "string",
+          "isRequired": false
+        },
+        {
+          "name": "CAMOFOX_ADMIN_KEY",
+          "description": "Optional admin key required for stop endpoint.",
+          "format": "string",
+          "isRequired": false
         }
       ],
       "transport": {
@@ -42,7 +75,7 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "camofox-browser-mcp",
       "runtimeHint": "bun",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "packageArguments": [
         {
           "type": "positional",
@@ -88,6 +121,39 @@
           "format": "string",
           "isRequired": false,
           "default": "info"
+        },
+        {
+          "name": "CAMOFOX_BASE_URL",
+          "description": "Base URL of the running camofox-browser backend.",
+          "format": "string",
+          "isRequired": false,
+          "default": "http://127.0.0.1:9377"
+        },
+        {
+          "name": "CAMOFOX_DEFAULT_USER_ID",
+          "description": "Default user ID used when tool inputs omit userId.",
+          "format": "string",
+          "isRequired": false,
+          "default": "default-user"
+        },
+        {
+          "name": "CAMOFOX_DEFAULT_SESSION_KEY",
+          "description": "Default session key used when tool inputs omit sessionKey.",
+          "format": "string",
+          "isRequired": false,
+          "default": "default-session"
+        },
+        {
+          "name": "CAMOFOX_API_KEY",
+          "description": "Optional API key for cookie import endpoint.",
+          "format": "string",
+          "isRequired": false
+        },
+        {
+          "name": "CAMOFOX_ADMIN_KEY",
+          "description": "Optional admin key required for stop endpoint.",
+          "format": "string",
+          "isRequired": false
         }
       ],
       "transport": {

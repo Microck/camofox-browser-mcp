@@ -1,5 +1,59 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`Tool Schema Snapshots > Tool: camofox_back > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Navigate browser history within a tab.",
+  "properties": {
+    "tabId": {
+      "description": "Tab id to navigate in history.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_back > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "History navigation result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from the history endpoint.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+    "url": {
+      "description": "Current URL after the history action.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
 exports[`Tool Schema Snapshots > Tool: camofox_click > inputSchema JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -62,6 +116,48 @@ exports[`Tool Schema Snapshots > Tool: camofox_click > outputSchema JSON output 
 }
 `;
 
+exports[`Tool Schema Snapshots > Tool: camofox_close_session > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Close an entire user browser session and all related tabs.",
+  "properties": {
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_close_session > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Close session result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from DELETE /sessions/:userId.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "userId": {
+      "description": "Closed user id.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "userId",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
 exports[`Tool Schema Snapshots > Tool: camofox_close_tab > inputSchema JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -106,6 +202,61 @@ exports[`Tool Schema Snapshots > Tool: camofox_close_tab > outputSchema JSON out
   },
   "required": [
     "tabId",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_close_tab_group > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Close all tabs in a tab group/session key.",
+  "properties": {
+    "listItemId": {
+      "description": "Legacy tab group identifier alias for sessionKey.",
+      "type": "string",
+    },
+    "sessionKey": {
+      "description": "Preferred tab group identifier to close.",
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_close_tab_group > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Close tab group result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from DELETE /tabs/group/:listItemId.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "sessionKey": {
+      "description": "Closed group key.",
+      "type": "string",
+    },
+    "userId": {
+      "description": "Resolved user id.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "userId",
+    "sessionKey",
     "response",
   ],
   "type": "object",
@@ -172,6 +323,150 @@ exports[`Tool Schema Snapshots > Tool: camofox_create_tab > outputSchema JSON ou
     "sessionKey",
     "tabId",
     "url",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_forward > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Navigate browser history within a tab.",
+  "properties": {
+    "tabId": {
+      "description": "Tab id to navigate in history.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_forward > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "History navigation result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from the history endpoint.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+    "url": {
+      "description": "Current URL after the history action.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_get_links > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Extract links from the current page with pagination support.",
+  "properties": {
+    "limit": {
+      "default": 50,
+      "description": "Maximum number of links to return in this page.",
+      "maximum": 500,
+      "minimum": 1,
+      "type": "integer",
+    },
+    "offset": {
+      "default": 0,
+      "description": "Offset into the extracted links list.",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer",
+    },
+    "tabId": {
+      "description": "Tab id where links should be extracted.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "limit",
+    "offset",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_get_links > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Link extraction result.",
+  "properties": {
+    "links": {
+      "description": "Extracted link items.",
+      "items": {
+        "additionalProperties": false,
+        "description": "Extracted page link item.",
+        "properties": {
+          "text": {
+            "description": "Link text content (possibly empty).",
+            "type": "string",
+          },
+          "url": {
+            "description": "Absolute URL for the extracted link.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "url",
+          "text",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from /tabs/:tabId/links.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "links",
     "response",
   ],
   "type": "object",
@@ -264,6 +559,90 @@ exports[`Tool Schema Snapshots > Tool: camofox_get_snapshot > outputSchema JSON 
     "snapshot",
     "refsCount",
     "truncated",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_get_stats > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Fetch tab statistics and usage metadata.",
+  "properties": {
+    "tabId": {
+      "description": "Tab id to inspect.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_get_stats > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Tab statistics result.",
+  "properties": {
+    "listItemId": {
+      "description": "Legacy alias for session key.",
+      "type": "string",
+    },
+    "refsCount": {
+      "description": "Number of active element refs currently tracked.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from /tabs/:tabId/stats.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "sessionKey": {
+      "description": "Session key/tab group identifier.",
+      "type": "string",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+    "toolCalls": {
+      "description": "Number of interactions performed on this tab.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "url": {
+      "description": "Current tab URL.",
+      "type": "string",
+    },
+    "visitedUrls": {
+      "description": "Previously visited URLs tracked for the tab.",
+      "items": {
+        "type": "string",
+      },
+      "type": "array",
+    },
+  },
+  "required": [
+    "tabId",
+    "visitedUrls",
+    "toolCalls",
+    "refsCount",
     "response",
   ],
   "type": "object",
@@ -528,6 +907,185 @@ exports[`Tool Schema Snapshots > Tool: camofox_navigate_tab > outputSchema JSON 
 }
 `;
 
+exports[`Tool Schema Snapshots > Tool: camofox_press > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Press a keyboard key in the active tab context.",
+  "properties": {
+    "key": {
+      "description": "Keyboard key to press (for example Enter, Escape, ArrowDown).",
+      "minLength": 1,
+      "type": "string",
+    },
+    "tabId": {
+      "description": "Tab id where keypress should happen.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "key",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_press > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Keypress action result.",
+  "properties": {
+    "key": {
+      "description": "Pressed key.",
+      "type": "string",
+    },
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from /tabs/:tabId/press.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "key",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_refresh > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Navigate browser history within a tab.",
+  "properties": {
+    "tabId": {
+      "description": "Tab id to navigate in history.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_refresh > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "History navigation result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from the history endpoint.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+    "url": {
+      "description": "Current URL after the history action.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_screenshot > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Capture a PNG screenshot from the target tab.",
+  "properties": {
+    "fullPage": {
+      "default": false,
+      "description": "If true, captures the full scrollable page.",
+      "type": "boolean",
+    },
+    "tabId": {
+      "description": "Tab id for screenshot capture.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "fullPage",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_screenshot > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Screenshot capture result.",
+  "properties": {
+    "bytes": {
+      "description": "Binary screenshot payload size in bytes.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "imageBase64": {
+      "description": "Base64 encoded PNG screenshot payload.",
+      "type": "string",
+    },
+    "mimeType": {
+      "description": "MIME type reported by the endpoint.",
+      "type": "string",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "mimeType",
+    "imageBase64",
+    "bytes",
+  ],
+  "type": "object",
+}
+`;
+
 exports[`Tool Schema Snapshots > Tool: camofox_scroll > inputSchema JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -633,6 +1191,48 @@ exports[`Tool Schema Snapshots > Tool: camofox_start_browser > outputSchema JSON
 }
 `;
 
+exports[`Tool Schema Snapshots > Tool: camofox_stop_browser > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Stop the browser engine and clear all sessions.",
+  "properties": {
+    "adminKey": {
+      "description": "Optional admin key override. Defaults to CAMOFOX_ADMIN_KEY.",
+      "type": "string",
+    },
+  },
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_stop_browser > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Stop browser result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from POST /stop.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "stopped": {
+      "description": "Whether stop operation was acknowledged.",
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "stopped",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
 exports[`Tool Schema Snapshots > Tool: camofox_type > inputSchema JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -712,6 +1312,138 @@ exports[`Tool Schema Snapshots > Tool: camofox_type > outputSchema JSON output s
     "tabId",
     "typed",
     "pressedEnter",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_wait > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Wait until page is ready after navigation or dynamic updates.",
+  "properties": {
+    "tabId": {
+      "description": "Tab id to wait on.",
+      "minLength": 1,
+      "type": "string",
+    },
+    "timeoutMs": {
+      "default": 10000,
+      "description": "Maximum wait time in milliseconds.",
+      "maximum": 120000,
+      "minimum": 1,
+      "type": "integer",
+    },
+    "userId": {
+      "description": "Optional user id. Defaults to CAMOFOX_DEFAULT_USER_ID.",
+      "type": "string",
+    },
+    "waitForNetwork": {
+      "default": true,
+      "description": "If true, also waits for network idle when possible.",
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "tabId",
+    "timeoutMs",
+    "waitForNetwork",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_wait > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Page readiness wait result.",
+  "properties": {
+    "ready": {
+      "description": "Whether the page reached ready state.",
+      "type": "boolean",
+    },
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from /tabs/:tabId/wait.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "tabId": {
+      "description": "Target tab id.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "tabId",
+    "ready",
+    "response",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_youtube_transcript > inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Extract transcript text from a YouTube video via camofox-browser backend.",
+  "properties": {
+    "languages": {
+      "description": "Optional preferred language codes in priority order, e.g. ["en"].",
+      "items": {
+        "minLength": 1,
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "url": {
+      "description": "YouTube video URL to extract captions from.",
+      "format": "uri",
+      "type": "string",
+    },
+  },
+  "required": [
+    "url",
+  ],
+  "type": "object",
+}
+`;
+
+exports[`Tool Schema Snapshots > Tool: camofox_youtube_transcript > outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "YouTube transcript extraction result.",
+  "properties": {
+    "response": {
+      "additionalProperties": {},
+      "description": "Raw response from /youtube/transcript.",
+      "propertyNames": {
+        "type": "string",
+      },
+      "type": "object",
+    },
+    "status": {
+      "description": "Backend status string, usually ok or error.",
+      "type": "string",
+    },
+    "totalWords": {
+      "description": "Total number of words in transcript, if provided.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "transcript": {
+      "description": "Extracted transcript text when available.",
+      "type": "string",
+    },
+  },
+  "required": [
     "response",
   ],
   "type": "object",

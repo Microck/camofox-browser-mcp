@@ -47,7 +47,8 @@ add this server entry to your mcp config:
         "CAMOFOX_BASE_URL": "http://127.0.0.1:9377",
         "CAMOFOX_DEFAULT_USER_ID": "default-user",
         "CAMOFOX_DEFAULT_SESSION_KEY": "default-session",
-        "CAMOFOX_API_KEY": ""
+        "CAMOFOX_API_KEY": "",
+        "CAMOFOX_ADMIN_KEY": ""
       }
     }
   }
@@ -61,3 +62,11 @@ set `CAMOFOX_API_KEY` in both:
 - this mcp server environment
 
 then use `camofox_import_cookies` before creating or navigating tabs.
+
+## 6) optional: enable browser stop
+
+set `CAMOFOX_ADMIN_KEY` in both:
+- your camofox-browser process environment
+- this mcp server environment
+
+then call `camofox_stop_browser` when you need to explicitly tear down the browser.
