@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png" alt="camofox-browser-mcp" width="100">
+  <img src="./logo.png" alt="camofox-browser-mcp" width="200">
 </p>
 
 <h1 align="center">camofox-browser-mcp</h1>
