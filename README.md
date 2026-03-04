@@ -87,6 +87,9 @@ Set these environment variables in your MCP client config.
 | `CAMOFOX_DEFAULT_SESSION_KEY` | no | `default-session` | Default `sessionKey` when omitted |
 | `CAMOFOX_API_KEY` | for `camofox_import_cookies` | unset | Bearer key for `/sessions/:userId/cookies` |
 | `CAMOFOX_ADMIN_KEY` | for `camofox_stop_browser` | unset | Admin key sent as `x-admin-key` for `/stop` |
+| `CAMOFOX_AUTOSTART_SERVER` | no | `true` | When baseUrl is localhost and server is unreachable, try to spawn `camofox-browser` automatically |
+| `CAMOFOX_AUTOSTART_COMMAND` | no | `camofox-browser` | Command used to spawn the camofox-browser HTTP server |
+| `CAMOFOX_AUTOSTART_TIMEOUT_MS` | no | `15000` | Max time to wait for the spawned server to answer `/health` |
 
 ### Example MCP config (local build)
 

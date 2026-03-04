@@ -3,6 +3,7 @@
  * @module src/mcp-server/tools/definitions/camofox-browser.tool
  */
 import fs from 'node:fs';
+import { spawn } from 'node:child_process';
 
 import { z } from 'zod';
 
@@ -133,6 +134,126 @@ function buildCamofoxUrl(
   return url.toString();
 }
 
+let camofoxAutostartPromise: Promise<boolean> | null = null;
+
+function isLocalCamofoxBaseUrl(): boolean {
+  try {
+    const url = new URL(config.camofox.baseUrl);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      hostname === '127.0.0.1' ||
+      hostname === 'localhost' ||
+      hostname === '::1' ||
+      hostname === '0.0.0.0'
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function probeCamofoxHealth(appContext: RequestContext): Promise<Record<string, unknown> | null> {
+  try {
+    const url = buildCamofoxUrl('/health');
+    const response = await fetchWithTimeout(
+      url,
+      Math.min(config.camofox.timeoutMs, 2000),
+      appContext,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+    );
+
+    const json = await response.json();
+    return isRecord(json) ? json : { ok: false, error: 'Invalid /health response type' };
+  } catch {
+    return null;
+  }
+}
+
+function shouldAutostartForError(error: unknown): boolean {
+  if (!(error instanceof McpError)) {
+    return false;
+  }
+
+  if (error.code !== JsonRpcErrorCode.ServiceUnavailable) {
+    return false;
+  }
+
+  const errorSource = getString(error.data?.errorSource);
+  return errorSource === 'FetchNetworkErrorWrapper';
+}
+
+async function ensureCamofoxServerRunning(appContext: RequestContext): Promise<boolean> {
+  if (!config.camofox.autostartServer) {
+    return false;
+  }
+
+  if (!isLocalCamofoxBaseUrl()) {
+    return false;
+  }
+
+  const existingHealth = await probeCamofoxHealth(appContext);
+  if (existingHealth) {
+    return true;
+  }
+
+  if (!camofoxAutostartPromise) {
+    camofoxAutostartPromise = (async () => {
+      const baseUrl = new URL(config.camofox.baseUrl);
+      const port = baseUrl.port || '9377';
+
+      logger.info(
+        `camofox-browser server not reachable; autostarting via ${config.camofox.autostartCommand}`,
+        {
+          ...appContext,
+          baseUrl: config.camofox.baseUrl,
+          port,
+        },
+      );
+
+      try {
+        const child = spawn(config.camofox.autostartCommand, [], {
+          detached: true,
+          stdio: 'ignore',
+          env: {
+            ...process.env,
+            CAMOFOX_PORT: port,
+            PORT: port,
+          },
+        });
+        child.unref();
+      } catch (error: unknown) {
+        logger.error('Failed to spawn camofox-browser for autostart',
+          error instanceof Error ? error : new Error(String(error)),
+          appContext,
+        );
+        return false;
+      }
+
+      const deadline = Date.now() + config.camofox.autostartTimeoutMs;
+      while (Date.now() < deadline) {
+        const health = await probeCamofoxHealth(appContext);
+        if (health) {
+          return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      logger.warning('Timed out waiting for camofox-browser server to become reachable', {
+        ...appContext,
+        baseUrl: config.camofox.baseUrl,
+        timeoutMs: config.camofox.autostartTimeoutMs,
+      });
+      return false;
+    })().finally(() => {
+      camofoxAutostartPromise = null;
+    });
+  }
+
+  return camofoxAutostartPromise;
+}
+
 async function requestCamofoxJson({
   method,
   path,
@@ -151,26 +272,40 @@ async function requestCamofoxJson({
   const url = buildCamofoxUrl(path, query);
   logger.debug(`Calling camofox endpoint ${method} ${url}`, appContext);
 
-  const response = await fetchWithTimeout(url, config.camofox.timeoutMs, appContext, {
-    method,
-    headers: {
-      Accept: 'application/json',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(headers ?? {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  const doRequest = async () => {
+    const response = await fetchWithTimeout(url, config.camofox.timeoutMs, appContext, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(headers ?? {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
 
-  const json = (await response.json());
-  if (!isRecord(json)) {
-    throw new McpError(
-      JsonRpcErrorCode.SerializationError,
-      `Expected JSON object from camofox endpoint ${path}.`,
-      { responseType: typeof json },
-    );
+    const json = await response.json();
+    if (!isRecord(json)) {
+      throw new McpError(
+        JsonRpcErrorCode.SerializationError,
+        `Expected JSON object from camofox endpoint ${path}.`,
+        { responseType: typeof json },
+      );
+    }
+
+    return json;
+  };
+
+  try {
+    return await doRequest();
+  } catch (error: unknown) {
+    if (shouldAutostartForError(error)) {
+      const started = await ensureCamofoxServerRunning(appContext);
+      if (started) {
+        return await doRequest();
+      }
+    }
+    throw error;
   }
-
-  return json;
 }
 
 function normalizeCookies(cookies: unknown[]): CamofoxCookie[] {
@@ -277,19 +412,18 @@ async function importCookiesIfProvided({
     return { imported: false, count: 0 };
   }
 
-  if (!config.camofox.apiKey) {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'CAMOFOX_API_KEY is required to import cookies.',
-    );
-  }
+  // Cookie import is typically protected by CAMOFOX_API_KEY, but some local
+  // setups allow loopback-only imports without a key.
+  const headers = config.camofox.apiKey
+    ? { Authorization: `Bearer ${config.camofox.apiKey}` }
+    : undefined;
 
   const response = await requestCamofoxJson({
     method: 'POST',
     path: `/sessions/${encodeURIComponent(userId)}/cookies`,
     appContext,
     body: { cookies: allCookies },
-    headers: { Authorization: `Bearer ${config.camofox.apiKey}` },
+    ...(headers ? { headers } : {}),
   });
 
   return {
@@ -323,13 +457,23 @@ export const camofoxHealthTool: ToolDefinition<
   outputSchema: HealthOutputSchema,
   annotations: TOOL_ANNOTATIONS_READ_ONLY,
   logic: withToolAuth(CAMOFOX_SCOPE, async (_input, appContext, _sdkContext) => {
-    const health = await requestCamofoxJson({
-      method: 'GET',
-      path: '/health',
-      appContext,
-    });
+    try {
+      const health = await requestCamofoxJson({
+        method: 'GET',
+        path: '/health',
+        appContext,
+      });
 
-    return { health };
+      return { health };
+    } catch (error: unknown) {
+      const details = {
+        ok: false,
+        baseUrl: config.camofox.baseUrl,
+        error: error instanceof Error ? error.message : String(error),
+        ...(error instanceof McpError ? { code: error.code, data: error.data } : {}),
+      };
+      return { health: details };
+    }
   }),
 };
 
@@ -358,17 +502,31 @@ export const camofoxStartBrowserTool: ToolDefinition<
   outputSchema: StartOutputSchema,
   annotations: TOOL_ANNOTATIONS_MUTATING,
   logic: withToolAuth(CAMOFOX_SCOPE, async (_input, appContext, _sdkContext) => {
-    const response = await requestCamofoxJson({
-      method: 'POST',
-      path: '/start',
-      appContext,
-      body: {},
-    });
+    try {
+      const response = await requestCamofoxJson({
+        method: 'POST',
+        path: '/start',
+        appContext,
+        body: {},
+      });
 
-    return {
-      started: getBoolean(response.ok) ?? true,
-      response,
-    };
+      return {
+        started: getBoolean(response.ok) ?? true,
+        response,
+      };
+    } catch (error: unknown) {
+      const response = {
+        ok: false,
+        baseUrl: config.camofox.baseUrl,
+        error: error instanceof Error ? error.message : String(error),
+        ...(error instanceof McpError ? { code: error.code, data: error.data } : {}),
+      };
+
+      return {
+        started: false,
+        response,
+      };
+    }
   }),
 };
 

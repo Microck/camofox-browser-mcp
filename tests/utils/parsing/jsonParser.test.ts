@@ -106,13 +106,17 @@ describe('JsonParser', () => {
     const stringWithWhitespace = '<think>thoughts</think>   ';
     expect(() =>
       parser.parse(stringWithWhitespace, Allow.ALL, context),
-    ).toThrow(
-      new McpError(
-        JsonRpcErrorCode.ValidationError,
+    ).toThrow(McpError);
+
+    try {
+      parser.parse(stringWithWhitespace, Allow.ALL, context);
+    } catch (error) {
+      const mcpError = error as McpError;
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
+      expect(mcpError.message).toBe(
         'JSON string is empty after removing <think> block and trimming.',
-        context,
-      ),
-    );
+      );
+    }
   });
 
   it('should handle leading/trailing whitespace in the JSON string', () => {

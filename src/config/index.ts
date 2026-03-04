@@ -177,6 +177,15 @@ const ConfigSchema = z.object({
     defaultSessionKey: z.string().min(1).default('default-session'),
     apiKey: z.string().optional(),
     adminKey: z.string().optional(),
+    autostartServer: z
+      .preprocess(emptyStringAsUndefined, z.coerce.boolean().optional())
+      .default(true),
+    autostartCommand: z
+      .preprocess(emptyStringAsUndefined, z.string().min(1).optional())
+      .default('camofox-browser'),
+    autostartTimeoutMs: z
+      .preprocess(emptyStringAsUndefined, z.coerce.number().int().min(1000).optional())
+      .default(15000),
   }),
   // Experimental: Task store configuration
   tasks: z.object({
@@ -331,6 +340,9 @@ const parseConfig = () => {
       defaultSessionKey: env.CAMOFOX_DEFAULT_SESSION_KEY,
       apiKey: env.CAMOFOX_API_KEY,
       adminKey: env.CAMOFOX_ADMIN_KEY,
+      autostartServer: env.CAMOFOX_AUTOSTART_SERVER,
+      autostartCommand: env.CAMOFOX_AUTOSTART_COMMAND,
+      autostartTimeoutMs: env.CAMOFOX_AUTOSTART_TIMEOUT_MS,
     },
     tasks: {
       storeType: env.TASK_STORE_TYPE,
